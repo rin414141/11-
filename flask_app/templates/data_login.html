@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>データセンター ログイン</h1>
+
+<form method="post">
+  <p>ユーザー名<br><input type="text" name="username"></p>
+  <p>パスワード<br><input type="password" name="password"></p>
+  <button>ログイン</button>
+</form>
+<p>初期値は admin / admin</p>
+{% endblock %}

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ぽけっと手当</title>
+</head>
+<body>
+<p><a href="/">ぽけっと手当</a> | <a href="/mypage">マイページ</a> | <a href="/login">ログイン</a> | <a href="/register">新規登録</a></p>
+<hr>
+
+{# flash() で出したメッセージ #}
+{% for message in get_flashed_messages() %}
+<p><b>{{ message }}</b></p>
+{% endfor %}
+
+{% block content %}{% endblock %}
+</body>
+</html>

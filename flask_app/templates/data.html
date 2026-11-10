@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>データセンター</h1>
+
+<h2>Geminiから補助金を取得</h2>
+{% if gemini_ready %}
+<form method="post" action="/data/gemini">
+  地域
+  <select name="area">
+    {% for code, name in prefectures.items() %}
+    <option value="{{ code }}">{{ name }}</option>
+    {% endfor %}
+  </select>
+  カテゴリ
+  <select name="category">
+    <option value="">すべて</option>
+    {% for c in categories %}
+    <option>{{ c }}</option>
+    {% endfor %}
+  </select>
+  <button>Geminiに聞く</button>
+</form>
+{% else %}
+<p>.env に GEMINI_API_KEY を書いて、起動し直してください。</p>
+{% endif %}
+
+<h2>テーブル：{{ table }}</h2>
+<p>
+  {% for t in tables %}
+  <a href="/data?table={{ t }}">{{ t }}</a>
+  {% endfor %}
+</p>
+
+<p>{{ rows|length }}件</p>
+<table border="1">
+  <tr>
+    {% for c in columns %}<th>{{ c }}</th>{% endfor %}
+    {% if table == "subsidy" %}<th>操作</th>{% endif %}
+  </tr>
+  {% for row in rows %}
+  <tr>
+    {% for c in columns %}<td>{{ row[c] }}</td>{% endfor %}
+    {% if table == "subsidy" %}
+    <td>
+      <form method="post" action="/data/delete/{{ row.id }}"><button>削除</button></form>
+    </td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

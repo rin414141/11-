@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>データセンター｜ぽけっと手当</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap wide">
+  <header id="header"></header>
+  <main>
+    <h1>データセンター <span class="small">（管理用・開発用）</span></h1>
+
+    <!-- 件数 -->
+    <div class="tiles" id="tiles"></div>
+
+    <!-- 集計 -->
+    <h2>集計</h2>
+    <div class="grid2">
+      <div><h3 class="small">都道府県別の診断数</h3><div class="table-wrap" id="byPref"></div></div>
+      <div><h3 class="small">☆保存の多い制度</h3><div class="table-wrap" id="byFav"></div></div>
+    </div>
+
+    <!-- テーブルの中身 -->
+    <h2>テーブル</h2>
+    <div class="tabs dc-tabs" id="tabs"></div>
+    <div class="toolbar">
+      <span class="small" id="tableInfo"></span>
+      <button class="tool-btn" id="csv">CSV出力</button>
+    </div>
+    <div class="table-wrap" id="table"></div>
+  </main>
+</div>
+<script src="app.js"></script>
+<script>
+  header();
+  const db = loadDB();
+
+  // テーブル設計書の論理名・物理名
+  const TABLES = [
+    ["subsidy", "補助金マスタ"],
+    ["member", "会員"],
+    ["favorite", "お気に入り"],
+    ["diagnosis_log", "診断ログ"],
+  ];
+  const COLS = {
+    subsidy: [["id","補助金ID"],["name","補助金名"],["amount","もらえる金額"],["difficulty","難易度"],["deadline","申請期限"],
+      ["official_url","公式URL"],["category","カテゴリ"],["target_area","対象地域"],["single_parent_only","ひとり親限定"],
+      ["child_required","子ども必須"],["income_max","年収上限区分"],["updated_at","更新日時"]],
+    member: [["id","会員ID"],["email","メールアドレス"],["password_hash","パスワード（ハッシュ）"],["prefecture","都道府県"],
+      ["children_count","子どもの人数"],["income","世帯年収区分"],["is_single","ひとり親"],["notify_deadline","締切お知らせ同意"],
+      ["agree_partner","提携案内同意"],["signup_trigger","登録のきっかけ"],["created_at","登録日時"]],
+    favorite: [["id","お気に入りID"],["member_id","会員ID"],["subsidy_id","補助金ID"],["created_at","登録日"]],
+    diagnosis_log: [["id","診断ログID"],["visit_id","訪問ID"],["member_id","会員ID"],["created_at","診断日時"],["prefecture","都道府県"],
+      ["children_count","子どもの人数"],["income","年収区分"],["is_single","ひとり親"],["subsidy_ids","該当補助金ID一覧"]],
+  };
+
+  // 表示用の値（コード値には名称を併記）
+  function show(table, col, v) {
+    if (v === null || v === undefined || v === "") return `<span class="null">NULL</span>`;
+    if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
+    if (col === "password_hash") return esc(String(v).slice(0, 12) + "…");
+    if (col === "prefecture" || col === "target_area") return `${esc(v)} ${esc(PREF_NAME[v] || "")}`;
+    if (col === "difficulty") return `${esc(v)}（${DIFF_LABEL[v]}）`;
+    if (col === "created_at" || col === "updated_at") return esc(String(v).replace("T", " ").slice(0, 19));
+    return esc(v);
+  }
+
+  // 件数タイル
+  const diagCount = db.diagnosis_log.length;
+  const memberDiag = db.diagnosis_log.filter(l => l.member_id !== null).length;
+  const zero = db.diagnosis_log.filter(l => !l.subsidy_ids).length;
+  document.getElementById("tiles").innerHTML = [
+    ["補助金マスタ", db.subsidy.length + "件"],
+    ["会員", db.member.length + "人"],
+    ["お気に入り", db.favorite.length + "件"],
+    ["診断数", diagCount + "回"],
+    ["会員による診断", diagCount ? Math.round(memberDiag / diagCount * 100) + "%" : "－"],
+    ["結果0件の診断", zero + "回"],
+  ].map(([k, v]) => `<div class="tile"><div class="small">${k}</div><div class="num">${v}</div></div>`).join("");
+
+  // 集計表
+  function miniTable(rows, head) {
+    if (!rows.length) return `<p class="small pad">データがありません</p>`;
+    return `<table><tr><th>${head[0]}</th><th class="num">${head[1]}</th></tr>` +
+      rows.map(([k, n]) => `<tr><td>${esc(k)}</td><td class="num">${n}</td></tr>`).join("") + `</table>`;
+  }
+  const countBy = (arr, key) => Object.entries(arr.reduce((a, x) => (a[key(x)] = (a[key(x)] || 0) + 1, a), {}))
+    .sort((a, b) => b[1] - a[1]);
+  document.getElementById("byPref").innerHTML =
+    miniTable(countBy(db.diagnosis_log, l => PREF_NAME[l.prefecture]), ["都道府県", "診断数"]);
+  document.getElementById("byFav").innerHTML =
+    miniTable(countBy(db.favorite, f => (db.subsidy.find(s => s.id === f.subsidy_id) || {}).name || `ID:${f.subsidy_id}`).slice(0, 10),
+      ["補助金名", "保存数"]);
+
+  // テーブル切替
+  let current = "subsidy";
+  document.getElementById("tabs").innerHTML = TABLES.map(([t, n]) =>
+    `<button type="button" data-t="${t}">${n}<br><span class="small">${t}</span></button>`).join("");
+  document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => renderTable(b.dataset.t));
+
+  function renderTable(t) {
+    current = t;
+    document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+    const cols = COLS[t], rows = db[t];
+    document.getElementById("tableInfo").textContent = `${rows.length}件`;
+    document.getElementById("table").innerHTML = rows.length
+      ? `<table><tr>${cols.map(([c, n]) => `<th>${n}<small>${c}</small></th>`).join("")}</tr>` +
+        rows.map(r => `<tr>${cols.map(([c]) => `<td>${show(t, c, r[c])}</td>`).join("")}</tr>`).join("") + `</table>`
+      : `<p class="small pad">データがありません</p>`;
+  }
+  renderTable(current);
+
+  // CSV出力（パスワードハッシュは出さない）
+  document.getElementById("csv").onclick = () => {
+    const cols = COLS[current].filter(([c]) => c !== "password_hash");
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [cols.map(([c]) => c).join(","), ...db[current].map(r => cols.map(([c]) => q(r[c])).join(","))].join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
+    a.download = `${current}_${ymd(new Date())}.csv`;
+    a.click();
+  };
+</script>
+</body>
+</html>

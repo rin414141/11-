@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>マイページ｜ぽけっと手当</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header id="header"></header>
+  <main>
+    <!-- SCR-05 マイページ画面（ログイン必須） -->
+    <h1>マイページ</h1>
+    <p class="small" id="email"></p>
+    <p id="warn" class="msg err" hidden></p>
+
+    <h2>保存した制度</h2>
+    <div id="favs"></div>
+
+    <h2>前回の診断条件</h2>
+    <p class="cond" id="last"></p>
+    <a class="btn sub" href="diagnosis.html">条件を変えてもう一度診断</a>
+
+    <h2>お知らせ設定</h2>
+    <label class="switch-row">締切お知らせを受け取る <input type="checkbox" id="notify_deadline"></label>
+
+    <h2>アカウント</h2>
+    <p><a href="#" id="logout">ログアウト</a></p>
+    <p><button class="danger" id="withdraw">退会する</button></p>
+  </main>
+
+  <dialog id="dlg">
+    <p><b>本当に退会しますか？</b><br><span class="small">保存した制度と会員情報は削除されます。</span></p>
+    <label for="reason" class="small">理由（任意）</label>
+    <select id="reason">
+      <option value="">選択しない</option>
+      <option>もう必要なくなった</option><option>欲しい制度が見つからなかった</option>
+      <option>使い方がわかりにくかった</option><option>その他</option>
+    </select>
+    <p class="dialog-actions">
+      <button class="btn sub" id="cancel">やめる</button>
+      <button class="btn" id="doWithdraw">退会する</button>
+    </p>
+  </dialog>
+</div>
+<script src="app.js"></script>
+<script>
+  const db = loadDB();
+  const me = currentMember(db);
+  if (!me) location.replace("auth.html?mode=login"); // 未ログインは SCR-04 へ
+  else render();
+
+  function render() {
+    header();
+    document.getElementById("email").textContent = me.email + " でログイン中";
+
+    // 保存した制度（締切が近い順）
+    const favIds = db.favorite.filter(f => f.member_id === me.id).map(f => f.subsidy_id);
+    const favs = db.subsidy.filter(s => favIds.includes(s.id)).sort(byDeadline);
+    document.getElementById("favs").innerHTML = favs.length ? favs.map(s => `
+      <div class="list-row">
+        <div>${esc(s.name)}<br><span class="small">申請期限：${deadlineHtml(s.deadline)}</span></div>
+        <a href="${esc(s.official_url)}" target="_blank" rel="noopener">公式サイト ↗</a>
+      </div>`).join("") : `<p class="small">まだ保存した制度はありません。診断結果の☆で保存できます。</p>`;
+
+    const soon = favs.filter(s => s.deadline && daysLeft(s.deadline) >= 0 && daysLeft(s.deadline) <= 7).length;
+    const warn = document.getElementById("warn");
+    warn.hidden = !soon;
+    warn.textContent = `${soon}件の制度が7日以内に締切です`;
+
+    // 前回の診断条件（最新1件のみ）
+    const last = lastDiagnosis(db);
+    document.getElementById("last").textContent = last
+      ? `${condText(last)}（${last.created_at.slice(0, 10).replace(/-/g, "/")}・${last.subsidy_ids ? last.subsidy_ids.split(",").length : 0}件）`
+      : "まだ診断していません";
+
+    const nd = document.getElementById("notify_deadline");
+    nd.checked = me.notify_deadline;
+    nd.onchange = () => { me.notify_deadline = nd.checked; saveDB(db); }; // 切替で即保存
+  }
+
+  document.getElementById("logout").onclick = e => {
+    e.preventDefault();
+    localStorage.removeItem("pokette_login");
+    setFlash("ログアウトしました");
+    location.href = "index.html";
+  };
+
+  const dlg = document.getElementById("dlg");
+  document.getElementById("withdraw").onclick = () => dlg.showModal();
+  document.getElementById("cancel").onclick = () => dlg.close();
+  document.getElementById("doWithdraw").onclick = () => {
+    // 会員とお気に入りは削除（CASCADE）、診断ログは会員IDを NULL にして残す（SET NULL）
+    db.favorite = db.favorite.filter(f => f.member_id !== me.id);
+    db.diagnosis_log.forEach(l => { if (l.member_id === me.id) l.member_id = null; });
+    db.member = db.member.filter(m => m.id !== me.id);
+    saveDB(db);
+    localStorage.removeItem("pokette_login");
+    localStorage.removeItem("pokette_last_diag");
+    setFlash("退会が完了しました");
+    location.href = "index.html";
+  };
+</script>
+</body>
+</html>

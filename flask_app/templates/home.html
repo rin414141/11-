@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>HOME</h1>
+<p>4つの質問に答えるだけで、受け取れる手当がわかります。</p>
+<p><a href="/diagnosis">無料で診断をはじめる</a></p>
+
+{% if member %}
+<p>{{ member.email }} でログイン中</p>
+{% endif %}
+
+<hr>
+<p><a href="/data">データセンター（管理者用）</a></p>
+{% endblock %}

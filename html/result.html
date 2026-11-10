@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>診断結果｜ぽけっと手当</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header id="header"></header>
+  <main>
+    <!-- SCR-03 診断結果画面（補助金一覧） -->
+    <h1>診断結果 <span id="count"></span></h1>
+    <p class="cond" id="cond"></p>
+    <p><a href="diagnosis.html">条件を変えて診断し直す ›</a></p>
+    <p class="small">申請期限が近い順</p>
+    <div id="list"></div>
+    <div id="bannerArea"></div>
+  </main>
+</div>
+<script src="app.js"></script>
+<script>
+  header({ back: "diagnosis.html" });
+  const db0 = loadDB();
+  const id = Number(new URLSearchParams(location.search).get("id"));
+  const log = db0.diagnosis_log.find(l => l.id === id) || lastDiagnosis(db0);
+  if (!log) location.href = "diagnosis.html";
+
+  function render() {
+    const db = loadDB();
+    const ids = log.subsidy_ids ? log.subsidy_ids.split(",").map(Number) : [];
+    const items = db.subsidy.filter(s => ids.includes(s.id)).sort(byDeadline);
+
+    document.getElementById("count").textContent = `${items.length}件`;
+    document.getElementById("cond").textContent = condText(log);
+    document.getElementById("list").innerHTML = items.length ? items.map(s => `
+      <div class="card">
+        <div class="top">
+          <div>
+            <span class="label">${esc(s.category)}</span><span class="label ${s.difficulty}">申請 ${DIFF_LABEL[s.difficulty]}</span>
+            <div class="name">${esc(s.name)}</div>
+          </div>
+          <button class="star" onclick="toggleFavorite(${s.id}); render()" aria-label="保存">${isFavorite(db, s.id) ? "★" : "☆"}</button>
+        </div>
+        <dl><dt>もらえる目安</dt><dd>${esc(s.amount)}</dd><dt>申請期限</dt><dd>${deadlineHtml(s.deadline)}</dd></dl>
+        <a class="official" href="${esc(s.official_url)}" target="_blank" rel="noopener">公式サイトで申請方法を見る ↗</a>
+      </div>`).join("")
+      : `<p class="msg err">条件に合う制度が見つかりませんでした</p>`;
+
+    // 未ログインで☆が1件以上なら登録案内
+    const n = tmpFav().length;
+    document.getElementById("bannerArea").innerHTML = !currentMember(db) && n
+      ? `<a class="banner" href="auth.html?mode=register">☆保存した${n}件、締切前にお知らせしますか？<br><b>無料登録してお知らせを受け取る</b></a>` : "";
+  }
+  if (log) render();
+</script>
+</body>
+</html>

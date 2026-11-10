@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOME｜ぽけっと手当</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header id="header"></header>
+  <main>
+    <!-- SCR-01 HOME画面 -->
+    <section class="hero">
+      <div class="mascot">ぽけっと<br>くん</div>
+      <p class="catch">すきまじかんで<br>補助金ゲット！！</p>
+      <p>4つの質問に答えるだけ。<br>あなたの家庭で受け取れる手当がわかります。</p>
+    </section>
+    <a class="btn" href="diagnosis.html">無料で診断をはじめる</a>
+    <p class="small center">登録なし・約1分</p>
+    <div class="features">
+      <div><b>1分</b><br>約1分で診断</div>
+      <div><b>0円</b><br>登録いらない</div>
+      <div><b>通知</b><br>締切をお知らせ</div>
+    </div>
+  </main>
+  <footer>
+    © ぽけっと手当（11班）<br>
+    <a href="data.html">データセンター（管理用）</a><br>
+    <button onclick="if(confirm('サンプルデータを初期状態に戻しますか？')) resetDB()">データを初期化（開発用）</button>
+  </footer>
+</div>
+<script src="app.js"></script>
+<script>
+  loadDB();
+  header();
+  flash();
+</script>
+</body>
+</html>

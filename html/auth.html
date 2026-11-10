@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登録・ログイン｜ぽけっと手当</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header id="header"></header>
+  <main>
+    <!-- SCR-04 登録・ログイン画面 -->
+    <div class="tabs">
+      <button type="button" data-mode="register">新規登録</button>
+      <button type="button" data-mode="login">ログイン</button>
+    </div>
+    <p id="err" class="msg err" hidden></p>
+    <p id="carry" class="msg ok" hidden></p>
+
+    <form id="form" novalidate>
+      <div class="field">
+        <label for="email">メールアドレス</label>
+        <input type="email" id="email" maxlength="254" autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="password">パスワード</label>
+        <input type="password" id="password" maxlength="32" autocomplete="current-password">
+        <label class="check small"><input type="checkbox" id="showPw"> パスワードを表示</label>
+        <p class="small reg">半角英数字8〜32文字（英字と数字を各1文字以上）</p>
+      </div>
+      <div class="reg">
+        <label class="check"><input type="checkbox" id="agree_terms"> 利用規約に同意する</label>
+        <label class="check"><input type="checkbox" id="notify_deadline" checked> 締切お知らせを受け取る</label>
+      </div>
+      <button class="btn" type="submit" id="submit"></button>
+      <p class="small center reg">氏名や住所の入力はいりません</p>
+    </form>
+  </main>
+</div>
+<script src="app.js"></script>
+<script>
+  header({ back: "javascript:history.back()" });
+  let mode = new URLSearchParams(location.search).get("mode") === "login" ? "login" : "register";
+
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+    document.querySelectorAll(".reg").forEach(el => el.hidden = m !== "register");
+    document.getElementById("submit").textContent = m === "register" ? "登録して保存する" : "ログイン";
+    document.getElementById("err").hidden = true;
+    // 引継ぎメッセージ（新規登録タブで☆保存または診断済みのとき）
+    const n = tmpFav().length, diag = localStorage.getItem("pokette_last_diag");
+    const carry = document.getElementById("carry");
+    carry.hidden = !(m === "register" && (n || diag));
+    carry.textContent = `☆保存した${n}件と、さっきの診断条件がそのまま引き継がれます`;
+  }
+  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  document.getElementById("showPw").onchange = e => document.getElementById("password").type = e.target.checked ? "text" : "password";
+  setMode(mode);
+
+  function showError(msg) {
+    const e = document.getElementById("err");
+    e.textContent = msg; e.hidden = false;
+    document.getElementById("password").value = ""; // パスワード欄のみ空に戻す
+  }
+
+  document.getElementById("form").onsubmit = async ev => {
+    ev.preventDefault();
+    const db = loadDB();
+    const email = document.getElementById("email").value.trim();
+    const pw = document.getElementById("password").value;
+    const found = db.member.find(m => m.email.toLowerCase() === email.toLowerCase()); // 大文字・小文字を区別しない
+
+    if (!email || !pw) return showError("メールアドレスとパスワードを入力してください");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError("メールアドレスの形式が正しくありません");
+
+    let member;
+    if (mode === "register") {
+      if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,32}$/.test(pw)) return showError("パスワードは半角英数字8〜32文字で、英字と数字を各1文字以上入れてください");
+      if (!document.getElementById("agree_terms").checked) return showError("利用規約への同意が必要です");
+      if (found) return showError("このメールアドレスは登録済みです");
+      member = insert(db, "member", {
+        email, password_hash: await hashPassword(pw),
+        prefecture: "", children_count: null, income: null, is_single: null,
+        notify_deadline: document.getElementById("notify_deadline").checked,
+        agree_partner: false,
+        signup_trigger: tmpFav().length ? "favorite" : "header",
+        created_at: now(),
+      });
+    } else {
+      if (!found || found.password_hash !== await hashPassword(pw)) return showError("メールアドレスまたはパスワードが違います");
+      member = found;
+    }
+    carryOver(db, member);
+    saveDB(db);
+    localStorage.setItem("pokette_login", member.id);
+    location.href = "mypage.html";
+  };
+</script>
+</body>
+</html>

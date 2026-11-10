@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>新規登録</h1>
+
+<form method="post">
+  <p>メールアドレス<br><input type="email" name="email"></p>
+  <p>パスワード（8文字以上）<br><input type="password" name="password"></p>
+  <p><label><input type="checkbox" name="agree_terms" value="1">利用規約に同意する</label></p>
+  <button>登録する</button>
+</form>
+
+<p>登録済みの方は <a href="/login">ログイン</a></p>
+{% endblock %}

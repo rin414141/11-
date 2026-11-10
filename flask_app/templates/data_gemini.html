@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Geminiの取得結果</h1>
+<p>Geminiの答えは間違っていることがあります。公式サイトで確かめてから、登録するものにチェックしてください。</p>
+
+<form method="post" action="/data/gemini/save">
+  <input type="hidden" name="area" value="{{ area }}">
+  <table border="1">
+    <tr><th>登録</th><th>補助金名</th><th>金額</th><th>難易度</th><th>期限</th><th>カテゴリ</th><th>公式URL</th></tr>
+    {% for s in items %}
+    {% set n = loop.index %}
+    <tr>
+      <td><input type="checkbox" name="checked" value="{{ n }}"></td>
+      <td>{{ s.name }}</td>
+      <td>{{ s.amount }}</td>
+      <td>{{ s.difficulty }}</td>
+      <td>{{ s.deadline or "随時" }}</td>
+      <td>{{ s.category }}</td>
+      <td><a href="{{ s.official_url }}" target="_blank">{{ s.official_url }}</a></td>
+    </tr>
+    {# 登録するときに送る値（画面には出ない） #}
+    <input type="hidden" name="name_{{ n }}" value="{{ s.name }}">
+    <input type="hidden" name="amount_{{ n }}" value="{{ s.amount }}">
+    <input type="hidden" name="difficulty_{{ n }}" value="{{ s.difficulty }}">
+    <input type="hidden" name="deadline_{{ n }}" value="{{ s.deadline }}">
+    <input type="hidden" name="official_url_{{ n }}" value="{{ s.official_url }}">
+    <input type="hidden" name="category_{{ n }}" value="{{ s.category }}">
+    <input type="hidden" name="single_parent_only_{{ n }}" value="{{ s.single_parent_only or 0 }}">
+    <input type="hidden" name="child_required_{{ n }}" value="{{ s.child_required or 0 }}">
+    <input type="hidden" name="income_max_{{ n }}" value="{{ s.income_max or '' }}">
+    {% endfor %}
+  </table>
+  <button>チェックしたものを登録する</button>
+</form>
+<p><a href="/data">登録しないで戻る</a></p>
+{% endblock %}

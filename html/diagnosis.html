@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>かんたん診断｜ぽけっと手当</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header id="header"></header>
+  <main>
+    <!-- SCR-02 制度診断画面 -->
+    <h1>かんたん診断</h1>
+    <p class="small" id="progressText">0/4</p>
+    <div class="progress"><div id="bar"></div></div>
+    <p id="err" class="msg err" hidden>未回答の質問があります</p>
+
+    <form id="form" novalidate>
+      <div class="q" id="q-prefecture">
+        <label for="prefecture">Q1 お住まいの都道府県</label>
+        <select id="prefecture" name="prefecture"><option value="">選択してください</option></select>
+      </div>
+      <div class="q" id="q-children_count"><label>Q2 子どもの人数</label><div class="choices" data-name="children_count"></div></div>
+      <div class="q" id="q-income"><label>Q3 世帯年収</label><div class="choices" data-name="income"></div></div>
+      <div class="q" id="q-is_single"><label>Q4 ひとり親世帯ですか？</label><div class="choices" data-name="is_single"></div></div>
+      <button class="btn" type="submit">この内容で診断する</button>
+      <p class="small">回答は個人が特定されない形で集計し、サービス改善に使います</p>
+    </form>
+  </main>
+</div>
+<script src="app.js"></script>
+<script>
+  header({ back: "index.html" });
+  const db = loadDB();
+  const ans = {}; // prefecture / children_count / income / is_single
+
+  // 選択肢を作る
+  const sel = document.getElementById("prefecture");
+  PREFS.forEach(([v, n]) => sel.add(new Option(n, v)));
+  const OPTIONS = { children_count: CHILDREN, income: INCOMES, is_single: SINGLE };
+  document.querySelectorAll(".choices").forEach(box => {
+    const name = box.dataset.name;
+    OPTIONS[name].forEach(([v, label]) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = label; b.dataset.value = v;
+      b.onclick = () => setAnswer(name, v);
+      box.appendChild(b);
+    });
+  });
+  sel.onchange = () => setAnswer("prefecture", sel.value || undefined);
+
+  function setAnswer(name, v) {
+    if (v === undefined) delete ans[name]; else ans[name] = v;
+    if (name === "prefecture") sel.value = v || "";
+    else document.querySelectorAll(`[data-name=${name}] button`).forEach(b => b.classList.toggle("on", Number(b.dataset.value) === v));
+    document.getElementById("q-" + name).classList.remove("error");
+    const n = Object.keys(ans).length;
+    document.getElementById("progressText").textContent = `${n}/4`;
+    document.getElementById("bar").style.width = `${n * 25}%`;
+  }
+
+  // 初期値：前回の診断条件（会員・または同じブラウザでの直前の診断）
+  const last = lastDiagnosis(db);
+  if (last) {
+    setAnswer("prefecture", last.prefecture);
+    setAnswer("children_count", last.children_count);
+    setAnswer("income", last.income);
+    setAnswer("is_single", last.is_single ? 1 : 0);
+  }
+
+  document.getElementById("form").onsubmit = e => {
+    e.preventDefault();
+    const missing = ["prefecture", "children_count", "income", "is_single"].filter(k => ans[k] === undefined);
+    missing.forEach(k => document.getElementById("q-" + k).classList.add("error"));
+    document.getElementById("err").hidden = missing.length === 0;
+    if (missing.length) { window.scrollTo(0, 0); return; }
+
+    const cond = { prefecture: ans.prefecture, children_count: ans.children_count, income: ans.income, is_single: ans.is_single === 1 };
+    const hits = db.subsidy.filter(s => match(s, cond)).map(s => s.id);
+    const m = currentMember(db);
+    const log = insert(db, "diagnosis_log", {
+      visit_id: visitId(), member_id: m ? m.id : null, created_at: now(), ...cond, subsidy_ids: hits.join(","),
+    });
+    if (m) Object.assign(m, cond); // member には直近の診断条件を持つ
+    saveDB(db);
+    localStorage.setItem("pokette_last_diag", log.id);
+    location.href = "result.html?id=" + log.id;
+  };
+</script>
+</body>
+</html>
