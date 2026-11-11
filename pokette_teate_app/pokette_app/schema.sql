@@ -1,0 +1,15 @@
+DROP TABLE IF EXISTS subsidy;
+CREATE TABLE subsidy (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name VARCHAR(100) NOT NULL,
+  amount VARCHAR(100) NOT NULL,
+  difficulty VARCHAR(10) NOT NULL,
+  deadline DATE NULL,
+  official_url VARCHAR(500) NOT NULL,
+  category VARCHAR(20) NOT NULL,
+  target_area VARCHAR(2) NOT NULL DEFAULT '00',
+  single_parent_only BOOLEAN NOT NULL DEFAULT 0,
+  child_required BOOLEAN NOT NULL DEFAULT 1,
+  income_max SMALLINT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

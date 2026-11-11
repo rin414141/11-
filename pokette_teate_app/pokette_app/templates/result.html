@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>診断結果 | ぽけっと手当</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="header">
+  <button class="back" onclick="location.href='/'">‹ 戻る</button>
+  <a class="logo" href="/">ぽけっと手当</a><a class="login" href="#">マイページ</a>
+</header>
+<main class="phone result-page">
+<section class="screen">
+  <h1>診断結果</h1>
+  <div class="summary"><strong id="count">-</strong>件の制度が見つかりました</div>
+  <div class="conditions"><span>入力条件</span><p id="conditionText"></p></div>
+  <a class="change" href="/">条件を変えてもう一度診断する</a>
+  <nav class="tabs" id="tabs">
+    <button class="active" data-cat="all">すべて</button>
+    <button data-cat="子育て">子育て</button><button data-cat="お金">お金</button>
+    <button data-cat="住まい">住まい</button><button data-cat="教育">教育</button>
+    <button data-cat="仕事">仕事</button><button data-cat="ひとり親支援">ひとり親</button>
+  </nav>
+  <div class="sort">おすすめ順 <span>▼</span></div>
+  <div id="cards"></div>
+  <div id="empty" class="empty" hidden>条件に合う制度がありません。</div>
+  <div class="signup">☆ 保存した制度をあとから確認するなら<br><button onclick="alert('登録・ログイン画面へ')">無料登録してお知らせを受け取る</button></div>
+  <div class="helpful"><p>この結果は役に立ちましたか？</p><button>はい</button><button>いいえ</button></div>
+</section>
+</main>
+<script src="{{ url_for('static', filename='result.js') }}"></script>
+</body></html>

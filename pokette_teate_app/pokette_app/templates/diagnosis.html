@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>制度診断 | ぽけっと手当</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="header">
+  <button class="back" onclick="history.back()">‹ 戻る</button>
+  <a class="logo" href="/">ぽけっと手当</a><a class="login" href="#">ログイン</a>
+</header>
+<main class="phone">
+  <section class="screen">
+    <h1>制度診断</h1>
+    <p class="lead">あなたに合う補助金・支援制度を診断します。</p>
+    <div class="progress"><span>1 / 4</span><div><i id="bar"></i></div></div>
+    <form id="diagnosisForm">
+      <div class="question active" data-q="1">
+        <p class="q">Q1 都道府県</p>
+        <label>お住まいの都道府県</label>
+        <select id="prefecture" required>
+          <option value="">選択してください</option>
+          <option value="01">北海道</option><option value="13">東京都</option>
+          <option value="23">愛知県</option><option value="27">大阪府</option>
+          <option value="26">京都府</option><option value="28">兵庫県</option>
+          <option value="40">福岡県</option>
+        </select>
+      </div>
+      <div class="question" data-q="2">
+        <p class="q">Q2 子どもの人数</p>
+        <div class="choices">
+          <label><input type="radio" name="children" value="0"> 0人</label>
+          <label><input type="radio" name="children" value="1"> 1人</label>
+          <label><input type="radio" name="children" value="2"> 2人</label>
+          <label><input type="radio" name="children" value="3"> 3人</label>
+          <label><input type="radio" name="children" value="4"> 4人以上</label>
+        </div>
+      </div>
+      <div class="question" data-q="3">
+        <p class="q">Q3 世帯年収</p>
+        <div class="choices">
+          <label><input type="radio" name="income" value="1"> 300万円未満</label>
+          <label><input type="radio" name="income" value="2"> 300〜500万円</label>
+          <label><input type="radio" name="income" value="3"> 500〜800万円</label>
+          <label><input type="radio" name="income" value="4"> 800万円以上</label>
+          <label><input type="radio" name="income" value="5"> わからない</label>
+        </div>
+      </div>
+      <div class="question" data-q="4">
+        <p class="q">Q4 ひとり親世帯</p>
+        <div class="choices">
+          <label><input type="radio" name="singleParent" value="true"> はい</label>
+          <label><input type="radio" name="singleParent" value="false"> いいえ</label>
+        </div>
+      </div>
+      <div id="error" class="error"></div>
+      <div class="actions">
+        <button type="button" id="prev" class="secondary">前の質問</button>
+        <button type="button" id="next" class="primary">次の質問</button>
+      </div>
+      <p class="note">診断結果の表示と診断条件の保存には、回答内容を利用します。</p>
+    </form>
+  </section>
+</main>
+<script src="{{ url_for('static', filename='diagnosis.js') }}"></script>
+</body></html>
