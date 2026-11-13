@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ぽけっと手当｜制度診断</title>
+<style>
+:root{--teal:#087b73;--teal2:#0b8b82;--bg:#f4f7f4;--text:#20302f;--line:#dce4df;--white:#fff;--orange:#d66b12}
+*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP","Yu Gothic",sans-serif;color:var(--text);background:#e9eeeb}
+button,input,select{font:inherit}.app{width:min(100%,390px);min-height:100vh;margin:auto;background:var(--bg);box-shadow:0 0 25px #0002}
+.header{height:60px;background:#fff;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid #edf0ee;position:sticky;top:0;z-index:5}
+.logo{font-weight:900;color:var(--teal);font-size:19px;flex:1}.back{border:0;background:none;font-size:28px;line-height:1;padding:4px 10px 4px 0}.login{border:0;background:none;color:#24302f;font-weight:700}
+.screen{display:none}.screen.active{display:block}.hero{background:var(--teal);color:white;padding:24px 22px 26px}.hero h1{font-size:25px;margin:0 0 10px}.hero p{margin:0;line-height:1.7;font-size:14px}
+.progress{height:7px;background:#dbe7e3;border-radius:99px;overflow:hidden;margin:18px 22px 0}.progress i{display:block;height:100%;background:var(--teal);width:25%;transition:.25s}
+.content{padding:20px 18px 40px}.q{background:white;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px #00000008}.q h2{font-size:16px;margin:0 0 14px}.required{color:#c33;font-size:11px;margin-left:5px}.choices{display:grid;gap:9px}.choice{min-height:52px;border:2px solid #d5ded9;border-radius:12px;background:#fff;text-align:left;padding:12px 14px;cursor:pointer}.choice.selected{border-color:var(--teal);background:#e9f6f3;font-weight:700}.primary{width:100%;min-height:60px;border:0;border-radius:30px;background:var(--teal);color:#fff;font-weight:900;cursor:pointer}.primary:disabled{background:#aebbb8;cursor:not-allowed}.error{display:none;background:#fff1f1;border:2px solid #d55;color:#b22;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:13px}.error.show{display:block}
+.resultHero{background:var(--teal);color:#fff;padding:26px 22px 22px}.resultHero .lead{font-size:14px}.count{font-size:52px;font-weight:900;line-height:1}.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}.chip{background:#2a928a;color:#fff;border-radius:20px;padding:7px 10px;font-size:12px}.linkback{display:inline-block;color:#fff;margin-top:15px;text-decoration:underline;font-weight:700;cursor:pointer}
+.tabs{display:flex;gap:8px;padding:15px 14px 8px;overflow:auto;background:var(--bg)}.tab{white-space:nowrap;border:2px solid #cfd8d4;border-radius:24px;background:white;padding:9px 16px;font-weight:700}.tab.active{background:#20302f;color:#fff;border-color:#20302f}
+.sort{padding:7px 18px 14px;font-size:12px;color:#65716e}.card{background:#fff;border-radius:17px;padding:16px;margin:0 16px 14px;box-shadow:0 2px 9px #00000009}.tags{display:flex;gap:6px;align-items:center}.tag{font-size:11px;font-weight:800;border-radius:20px;padding:5px 8px;background:#e4f2ef;color:#126c64}.diff.easy{background:#dff3e2;color:#26703c}.diff.normal{background:#fff0bf;color:#8b6810}.diff.hard{background:#ffe0df;color:#a6332d}.save{margin-left:auto;border:0;background:#f0f3f1;border-radius:50%;width:42px;height:42px;font-size:22px;cursor:pointer}.save.saved{color:#d16a13;background:#fff0dd}.card h3{font-size:17px;margin:12px 0}.meta{display:grid;grid-template-columns:1fr 1fr;background:#f3f6f3;border-radius:12px;padding:12px}.meta small{display:block;color:#68736f;margin-bottom:4px}.meta b{font-size:14px}.deadline{color:#c62828}.official{display:block;text-align:center;border:2px solid var(--teal);color:var(--teal);border-radius:28px;padding:12px;margin-top:13px;font-weight:900;text-decoration:none;min-height:46px}
+.notice{margin:16px;background:#fff0d9;border-radius:16px;padding:18px}.notice h3{margin:0 0 8px;font-size:15px}.notice p{font-size:13px;line-height:1.7}.orange{background:var(--orange)}.feedback{background:#fff;margin:16px;border-radius:16px;padding:18px;text-align:center}.feedback button{width:47%;min-height:46px;border:2px solid #cbd4d0;border-radius:25px;background:#fff;font-weight:800}.feedback button:first-of-type{margin-right:2%}
+.empty{padding:35px 20px;text-align:center}.empty h3{margin-bottom:8px}.small{font-size:12px;color:#66716e;line-height:1.7}.footer{padding:30px;text-align:center;color:#71807b;font-size:11px}
+@media(min-width:700px){body{padding:30px}.app{border-radius:20px;overflow:hidden}.header{position:relative}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="header">
+<button class="back" id="backBtn" onclick="goDiag()">‹</button>
+<div class="logo">ぽけっと手当</div>
+<button class="login" onclick="alert('このHTML版ではログイン機能は画面確認用です。')">ログイン</button>
+</header>
+
+<section id="diag" class="screen active">
+<div class="hero"><h1>制度診断</h1><p>4つの質問に答えるだけで、あなたの家庭に合う可能性のある制度を探します。</p></div>
+<div class="progress"><i id="progress"></i></div>
+<div class="content">
+<div id="err" class="error">未回答の質問があります。すべて回答してください。</div>
+<div class="q"><h2>Q1　お住まいの都道府県<span class="required">必須</span></h2>
+<div class="choices" id="q1">
+<button class="choice" data-v="01">北海道</button><button class="choice" data-v="13">東京都</button>
+<button class="choice" data-v="23">愛知県</button><button class="choice" data-v="27">大阪府</button>
+<button class="choice" data-v="26">京都府</button><button class="choice" data-v="14">神奈川県</button>
+</div></div>
+<div class="q"><h2>Q2　子どもの人数<span class="required">必須</span></h2>
+<div class="choices" id="q2"><button class="choice" data-v="0">0人</button><button class="choice" data-v="1">1人</button><button class="choice" data-v="2">2人</button><button class="choice" data-v="3">3人</button><button class="choice" data-v="4">4人以上</button></div></div>
+<div class="q"><h2>Q3　世帯年収<span class="required">必須</span></h2>
+<div class="choices" id="q3"><button class="choice" data-v="1">300万円未満</button><button class="choice" data-v="2">300〜500万円</button><button class="choice" data-v="3">500〜800万円</button><button class="choice" data-v="4">800万円以上</button><button class="choice" data-v="5">わからない</button></div></div>
+<div class="q"><h2>Q4　ひとり親世帯ですか？<span class="required">必須</span></h2>
+<div class="choices" id="q4"><button class="choice" data-v="true">はい</button><button class="choice" data-v="false">いいえ</button></div></div>
+<button class="primary" onclick="diagnose()">この内容で診断する</button>
+</div>
+</section>
+
+<section id="result" class="screen">
+<div class="resultHero"><div class="lead">あなたの家庭が受け取れる可能性のある制度</div><div class="count"><span id="count">0</span><small> 件</small></div><div class="chips" id="summary"></div><a class="linkback" onclick="goDiag()">条件を変えて診断し直す ›</a></div>
+<div class="tabs" id="tabs"><button class="tab active" data-cat="all">すべて</button><button class="tab" data-cat="子育て">子育て</button><button class="tab" data-cat="教育">教育</button><button class="tab" data-cat="住まい">住まい</button><button class="tab" data-cat="お金">お金</button><button class="tab" data-cat="仕事">仕事</button><button class="tab" data-cat="ひとり親支援">ひとり親支援</button></div>
+<div class="sort">申請期限が近い順</div><div id="cards"></div>
+<div class="notice"><h3>☆保存した制度、締切前にお知らせしますか？</h3><p>メールアドレスだけで登録できます。今の診断条件もそのまま保存されます。</p><button class="primary orange" onclick="alert('登録画面は今回のHTML版では確認用です。')">無料登録してお知らせを受け取る</button></div>
+<div class="feedback"><b>この結果は役に立ちましたか？</b><div style="margin-top:14px"><button onclick="alert('ありがとうございます！')">はい</button><button onclick="alert('ご意見ありがとうございます！')">いいえ</button></div></div>
+<div class="footer">ぽけっと手当　制度情報は各自治体・制度の公式情報をご確認ください。</div>
+</section>
+</div>
+
+<script>
+const subsidies=[
+{id:1,name:"就学援助",amount:"学用品・給食費など",difficulty:"normal",deadline:"2026-11-20",url:"https://www.mext.go.jp/",category:"教育",area:"00",single:false,child:true,income:3},
+{id:2,name:"子育て世帯の住み替え補助（市区町村）",amount:"最大10万円",difficulty:"normal",deadline:"2026-11-25",url:"https://www.mlit.go.jp/",category:"住まい",area:"00",single:false,child:true,income:null},
+{id:3,name:"児童手当",amount:"月1万円〜／1人",difficulty:"easy",deadline:null,url:"https://www.cfa.go.jp/policies/kokoseido/jidouteate/",category:"子育て",area:"00",single:false,child:true,income:null},
+{id:4,name:"高等学校等就学支援金",amount:"年11万8,800円〜",difficulty:"normal",deadline:"2026-12-10",url:"https://www.mext.go.jp/a_menu/shotou/mushouka/",category:"教育",area:"00",single:false,child:true,income:4},
+{id:5,name:"子ども医療費助成",amount:"医療費の自己負担を助成",difficulty:"easy",deadline:null,url:"https://www.cfa.go.jp/policies/boshihoken/",category:"子育て",area:"00",single:false,child:true,income:null},
+{id:6,name:"幼児教育・保育の無償化",amount:"3〜5歳の保育料 0円",difficulty:"easy",deadline:null,url:"https://www.cfa.go.jp/policies/kokoseido/mushouka/",category:"子育て",area:"00",single:false,child:true,income:null},
+{id:7,name:"住居確保給付金",amount:"家賃相当額（上限あり）",difficulty:"hard",deadline:null,url:"https://corona-support.mhlw.go.jp/",category:"住まい",area:"00",single:false,child:false,income:2},
+{id:8,name:"教育訓練給付金",amount:"受講費用の20〜80%",difficulty:"normal",deadline:null,url:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/jinzaikaihatsu/kyouiku.html",category:"仕事",area:"00",single:false,child:false,income:null},
+{id:9,name:"ひとり親家庭向け支援",amount:"各自治体の支援制度",difficulty:"normal",deadline:null,url:"https://www.cfa.go.jp/policies/boshihoken/hitori/",category:"ひとり親支援",area:"00",single:true,child:false,income:null}
+];
+let state={pref:null,children:null,income:null,single:null,results:[]};
+
+document.querySelectorAll(".choices").forEach(group=>{
+ group.querySelectorAll(".choice").forEach(btn=>btn.onclick=()=>{
+   group.querySelectorAll(".choice").forEach(b=>b.classList.remove("selected"));
+   btn.classList.add("selected");
+   state["q"+group.id.slice(1)]=btn.dataset.v;
+   updateProgress();
+ });
+});
+function updateProgress(){
+ let n=["pref","children","income","single"].filter(k=>state[k]!==null).length;
+ document.getElementById("progress").style.width=(n*25)+"%";
+}
+function incomeOk(item,inc){
+ if(item.income==null || inc==="5") return item.income==null || inc==="5";
+ return Number(inc)<=item.income;
+}
+function diagnose(){
+ if([state.pref,state.children,state.income,state.single].some(v=>v===null)){
+   document.getElementById("err").classList.add("show"); return;
+ }
+ document.getElementById("err").classList.remove("show");
+ state.results=subsidies.filter(s=>
+   (s.area==="00"||s.area===state.pref) &&
+   (!s.single || state.single==="true") &&
+   (!s.child || Number(state.children)>=1) &&
+   incomeOk(s,state.income)
+ );
+ localStorage.setItem("poketteDiagnosis",JSON.stringify(state));
+ renderResult();
+}
+function goDiag(){
+ document.getElementById("result").classList.remove("active");document.getElementById("diag").classList.add("active");document.getElementById("backBtn").style.visibility="visible";
+}
+function renderResult(){
+ document.getElementById("diag").classList.remove("active");document.getElementById("result").classList.add("active");
+ document.getElementById("backBtn").style.visibility="visible";
+ document.getElementById("count").textContent=state.results.length;
+ let pref={01:"北海道",13:"東京都",23:"愛知県",27:"大阪府",26:"京都府",14:"神奈川県"}[state.pref]||"選択地域";
+ let inc={1:"300万円未満",2:"300〜500万円",3:"500〜800万円",4:"800万円以上",5:"わからない"}[state.income];
+ document.getElementById("summary").innerHTML=`<span class="chip">${pref}</span><span class="chip">子ども${Number(state.children)}人</span><span class="chip">年収${inc}</span><span class="chip">ひとり親：${state.single==="true"?"はい":"いいえ"}</span>`;
+ renderCards("all");
+}
+function renderCards(cat){
+ const list=state.results.filter(s=>cat==="all"||s.category===cat).slice().sort((a,b)=>(a.deadline||"9999-12-31").localeCompare(b.deadline||"9999-12-31"));
+ const cards=document.getElementById("cards");
+ if(!list.length){cards.innerHTML='<div class="empty"><h3>該当する制度はありません</h3><p class="small">条件を変えて、もう一度診断してみてください。</p></div>';return}
+ cards.innerHTML=list.map(s=>{
+   const saved=localStorage.getItem("fav_"+s.id)==="1";
+   let dl="随時", cls="";
+   if(s.deadline){const d=Math.ceil((new Date(s.deadline+"T23:59:59")-new Date())/86400000);dl=new Date(s.deadline).toLocaleDateString("ja-JP",{month:"numeric",day:"numeric"});if(d<=7){dl+=`（あと${Math.max(0,d)}日）`;cls="deadline"}}
+   const diff=s.difficulty==="easy"?"簡単":s.difficulty==="normal"?"普通":"難しい";
+   return `<article class="card"><div class="tags"><span class="tag">${s.category}</span><span class="tag diff ${s.difficulty}">申請 ${diff}</span><button class="save ${saved?"saved":""}" onclick="toggleFav(${s.id},this)">${saved?"★":"☆"}</button></div><h3>${s.name}</h3><div class="meta"><div><small>もらえる目安</small><b>${s.amount}</b></div><div><small>申請期限</small><b class="${cls}">${dl}</b></div></div><a class="official" target="_blank" href="${s.url}" onclick="logClick(${s.id})">公式サイトで申請方法を見る ↗</a></article>`;
+ }).join("");
+}
+function toggleFav(id,el){const key="fav_"+id;const now=localStorage.getItem(key)==="1";if(now)localStorage.removeItem(key);else localStorage.setItem(key,"1");el.textContent=now?"☆":"★";el.classList.toggle("saved",!now)}
+function logClick(id){console.log("EV-09 official click",id)}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));t.classList.add("active");renderCards(t.dataset.cat)});
+const saved=localStorage.getItem("poketteDiagnosis");if(saved){try{state=JSON.parse(saved);state.results=state.results||[];["pref","children","income","single"].forEach((k,i)=>{if(state[k]!==null){const g=document.getElementById("q"+(i+1));g.querySelector(`[data-v="${state[k]}"]`)?.classList.add("selected")}});updateProgress()}catch(e){}}
+</script>
+</body>
+</html>
