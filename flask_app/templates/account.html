@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}アカウント情報の変更｜ぽけっと手当{% endblock %}
+{% block content %}
+<h1>メールアドレス・パスワードの変更</h1>
+<form class="page-card" method="post" novalidate>
+  <p class="small">変更する項目だけ入力し、最後に現在のパスワードを入力してください。</p>
+  <div class="field">
+    <label for="email">メールアドレス（変更する場合のみ）</label>
+    <input type="email" name="email" id="email" maxlength="254" placeholder="{{ member.email }}" autocomplete="email">
+  </div>
+  <div class="field">
+    <label for="new_password">新しいパスワード（変更する場合のみ）</label>
+    <input type="password" name="new_password" id="new_password" maxlength="32" placeholder="英字と数字を含む8〜32文字" autocomplete="new-password">
+  </div>
+  <div class="field">
+    <label for="current_password">現在のパスワード（必須）</label>
+    <input type="password" name="current_password" id="current_password" maxlength="128" autocomplete="current-password" required>
+  </div>
+  <button type="submit" class="btn block">変更する</button>
+  <p><a href="/mypage">マイページに戻る</a></p>
+</form>
+{% endblock %}

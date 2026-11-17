@@ -1,13 +1,20 @@
 {% extends "base.html" %}
+{% block title %}新規登録｜ぽけっと手当{% endblock %}
 {% block content %}
 <h1>新規登録</h1>
-
-<form method="post">
-  <p>メールアドレス<br><input type="email" name="email"></p>
-  <p>パスワード（8文字以上）<br><input type="password" name="password"></p>
-  <p><label><input type="checkbox" name="agree_terms" value="1">利用規約に同意する</label></p>
-  <button>登録する</button>
+<form class="page-card" method="post">
+  <div class="field">
+    <label for="email">メールアドレス</label>
+    <input type="email" name="email" id="email" maxlength="254" autocomplete="email" required>
+  </div>
+  <div class="field">
+    <label for="password">パスワード（8文字以上）</label>
+    <input type="password" name="password" id="password" minlength="8" maxlength="32" autocomplete="new-password" required>
+  </div>
+  <label class="check"><input type="checkbox" name="agree_terms" value="1" required> 利用規約に同意する</label>
+  <label class="check"><input type="checkbox" name="notify_deadline" value="1" checked> 締切のお知らせを受け取る</label>
+  <label class="check"><input type="checkbox" name="agree_partner" value="1"> 提携サービスの案内を受け取る（任意）</label>
+  <button type="submit" class="btn block">登録する</button>
 </form>
-
-<p>登録済みの方は <a href="/login">ログイン</a></p>
+<p class="center">登録済みの方は <a href="/login">ログイン</a></p>
 {% endblock %}

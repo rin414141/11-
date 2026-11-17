@@ -1,12 +1,17 @@
 {% extends "base.html" %}
+{% block title %}ログイン｜ぽけっと手当{% endblock %}
 {% block content %}
 <h1>ログイン</h1>
-
-<form method="post">
-  <p>メールアドレス<br><input type="email" name="email"></p>
-  <p>パスワード<br><input type="password" name="password"></p>
-  <button>ログイン</button>
+<form class="page-card" method="post">
+  <div class="field">
+    <label for="email">メールアドレス</label>
+    <input type="email" name="email" id="email" maxlength="254" autocomplete="email" required>
+  </div>
+  <div class="field">
+    <label for="password">パスワード</label>
+    <input type="password" name="password" id="password" autocomplete="current-password" required>
+  </div>
+  <button type="submit" class="btn block">ログイン</button>
 </form>
-
-<p>はじめての方は <a href="/register">新規登録</a></p>
+<p class="center">はじめての方は <a href="/register">新規登録</a></p>
 {% endblock %}

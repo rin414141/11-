@@ -3,11 +3,13 @@
 起動:  python app.py  →  http://127.0.0.1:5000/
 """
 import os
+import re
 import sqlite3
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from urllib.parse import urlparse
 
-from flask import Flask, flash, g, redirect, render_template, request, session
+from flask import Flask, abort, flash, g, redirect, render_template, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import gemini
@@ -61,6 +63,12 @@ def now():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def ensure_visit_id():
+    if "visit_id" not in session:
+        session["visit_id"] = str(uuid.uuid4())
+    return session["visit_id"]
+
+
 def login_member():
     """ログイン中の会員を返す（ログインしていなければ None）"""
     if "member_id" not in session:
@@ -109,13 +117,12 @@ def diagnosis():
     db = get_db()
     hits = [s["id"] for s in db.execute("SELECT * FROM subsidy") if match(s, prefecture, children, income, is_single)]
 
-    if "visit_id" not in session:
-        session["visit_id"] = str(uuid.uuid4())       # ブラウザごとの訪問ID
+    visit_id = ensure_visit_id()
     member = login_member()
     cur = db.execute(
         "INSERT INTO diagnosis_log (visit_id, member_id, created_at, prefecture, children_count, income, is_single, subsidy_ids)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (session["visit_id"], member["id"] if member else None, now(),
+        (visit_id, member["id"] if member else None, now(),
          prefecture, children, income, is_single, ",".join(str(i) for i in hits)))
     db.commit()
     return redirect(f"/result/{cur.lastrowid}")
@@ -140,6 +147,24 @@ def result(log_id):
         favorite_ids = [r["subsidy_id"] for r in db.execute("SELECT subsidy_id FROM favorite WHERE member_id = ?", (member["id"],))]
     return render_template("result.html", log=log, subsidies=subsidies, member=member,
                            favorite_ids=favorite_ids, pref_name=PREF_NAME)
+
+
+@app.route("/out/<int:subsidy_id>")
+def official_click(subsidy_id):
+    db = get_db()
+    subsidy = db.execute("SELECT id, official_url FROM subsidy WHERE id = ?", (subsidy_id,)).fetchone()
+    if subsidy is None:
+        abort(404)
+    target = urlparse(subsidy["official_url"])
+    if target.scheme != "https" or not target.netloc:
+        abort(400)
+
+    member = login_member()
+    db.execute(
+        "INSERT INTO official_click (visit_id, member_id, subsidy_id, created_at) VALUES (?, ?, ?, ?)",
+        (ensure_visit_id(), member["id"] if member else None, subsidy_id, now()))
+    db.commit()
+    return redirect(subsidy["official_url"])
 
 
 @app.route("/favorite/<int:subsidy_id>", methods=["POST"])
@@ -168,8 +193,10 @@ def register():
     email = request.form["email"].strip()
     password = request.form["password"]
     db = get_db()
-    if "@" not in email or len(password) < 8:
-        flash("メールアドレスと、8文字以上のパスワードを入力してください")
+    if len(email) > 254 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email) or not re.fullmatch(
+        r"(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,32}", password
+    ):
+        flash("有効なメールアドレスと、英字・数字を含む8〜32文字のパスワードを入力してください")
         return redirect("/register")
     if not request.form.get("agree_terms"):
         flash("利用規約に同意してください")
@@ -178,8 +205,10 @@ def register():
         flash("このメールアドレスは登録済みです")
         return redirect("/register")
 
-    cur = db.execute("INSERT INTO member (email, password_hash, created_at) VALUES (?, ?, ?)",
-                     (email, generate_password_hash(password), now()))
+    cur = db.execute(
+        "INSERT INTO member (email, password_hash, notify_deadline, agree_partner, created_at) VALUES (?, ?, ?, ?, ?)",
+        (email, generate_password_hash(password), int(bool(request.form.get("notify_deadline"))),
+         int(bool(request.form.get("agree_partner"))), now()))
     db.commit()
     session["member_id"] = cur.lastrowid
     return redirect("/mypage")
@@ -214,25 +243,101 @@ def mypage():
     db = get_db()
     favorites = db.execute(
         "SELECT subsidy.* FROM favorite JOIN subsidy ON subsidy.id = favorite.subsidy_id"
-        " WHERE favorite.member_id = ? ORDER BY subsidy.deadline", (member["id"],)).fetchall()
+        " WHERE favorite.member_id = ? ORDER BY subsidy.deadline IS NULL, subsidy.deadline",
+        (member["id"],)).fetchall()
     last = db.execute("SELECT * FROM diagnosis_log WHERE member_id = ? ORDER BY id DESC LIMIT 1", (member["id"],)).fetchone()
-    return render_template("mypage.html", member=member, favorites=favorites, last=last, pref_name=PREF_NAME)
+    today = date.today().isoformat()
+    week_end = (date.today() + timedelta(days=7)).isoformat()
+    soon_count = sum(1 for item in favorites if item["deadline"] and today <= item["deadline"] <= week_end)
+    return render_template("mypage.html", member=member, favorites=favorites, last=last,
+                           pref_name=PREF_NAME, today=today, week_end=week_end, soon_count=soon_count,
+                           child_labels={0: "0人", 1: "1人", 2: "2人", 3: "3人", 4: "4人以上"},
+                           income_labels={1: "300万円未満", 2: "300〜500万円", 3: "500〜800万円",
+                                          4: "800万円以上", 5: "わからない"})
+
+
+@app.route("/mypage/settings", methods=["POST"])
+def mypage_settings():
+    member = login_member()
+    if member is None:
+        return redirect("/login")
+    db = get_db()
+    db.execute(
+        "UPDATE member SET notify_deadline = ?, agree_partner = ? WHERE id = ?",
+        (int(request.form.get("notify_deadline") == "1"),
+         int(request.form.get("agree_partner") == "1"), member["id"]))
+    db.commit()
+    flash("お知らせ設定を保存しました")
+    return redirect("/mypage")
+
+
+@app.route("/account", methods=["GET", "POST"])
+def account():
+    member = login_member()
+    if member is None:
+        return redirect("/login")
+    if request.method == "GET":
+        return render_template("account.html", member=member)
+
+    email = request.form.get("email", "").strip()
+    new_password = request.form.get("new_password", "")
+    current_password = request.form.get("current_password", "")
+    if not current_password or not check_password_hash(member["password_hash"], current_password):
+        flash("現在のパスワードが正しくありません")
+        return redirect("/account")
+    if not email and not new_password:
+        flash("変更する項目を入力してください")
+        return redirect("/account")
+    if email and (len(email) > 254 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email)):
+        flash("メールアドレスの形式が正しくありません")
+        return redirect("/account")
+    db = get_db()
+    if email and db.execute(
+        "SELECT id FROM member WHERE email = ? AND id != ?", (email, member["id"])
+    ).fetchone():
+        flash("このメールアドレスは登録済みです")
+        return redirect("/account")
+    if new_password and (
+        not 8 <= len(new_password) <= 32
+        or not re.fullmatch(r"(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+", new_password)
+    ):
+        flash("新しいパスワードは半角英数字8〜32文字で、英字と数字を各1文字以上入れてください")
+        return redirect("/account")
+
+    updates = []
+    values = []
+    if email:
+        updates.append("email = ?")
+        values.append(email)
+    if new_password:
+        updates.append("password_hash = ?")
+        values.append(generate_password_hash(new_password))
+    values.append(member["id"])
+    db.execute(f"UPDATE member SET {', '.join(updates)} WHERE id = ?", values)
+    db.commit()
+    flash("アカウント情報を変更しました")
+    return redirect("/mypage")
 
 
 @app.route("/withdraw", methods=["POST"])
 def withdraw():
     """退会：会員を削除（お気に入りも一緒に消え、診断ログの会員IDは NULL になる）"""
     member = login_member()
+    db = get_db()
+    reason = request.form.get("reason", "")
+    if reason in {"もう必要なくなった", "欲しい制度が見つからなかった", "使い方がわかりにくかった", "その他"}:
+        db.execute("INSERT INTO withdrawal_feedback (reason, created_at) VALUES (?, ?)", (reason, now()))
     if member:
-        get_db().execute("DELETE FROM member WHERE id = ?", (member["id"],))
-        get_db().commit()
+        db.execute("DELETE FROM member WHERE id = ?", (member["id"],))
+    db.commit()
     session.pop("member_id", None)
     flash("退会が完了しました")
     return redirect("/")
 
 
 # ------------------------------------------------------------ データセンター（管理者だけ）
-TABLES = ["subsidy", "member", "favorite", "diagnosis_log", "admin_user"]
+TABLES = ["subsidy", "member", "favorite", "diagnosis_log", "admin_user",
+          "withdrawal_feedback", "official_click"]
 
 
 @app.route("/data/login", methods=["GET", "POST"])
@@ -257,9 +362,41 @@ def data():
         table = "subsidy"
     rows = get_db().execute(f"SELECT * FROM {table}").fetchall()
     columns = rows[0].keys() if rows else []
+    db = get_db()
+    labels = {"easy": "簡単", "normal": "ふつう", "hard": "難しい"}
+    counts = {
+        row["difficulty"]: row
+        for row in db.execute(
+            "SELECT subsidy.difficulty, COUNT(official_click.id) AS clicks,"
+            " COUNT(DISTINCT official_click.visit_id) AS users"
+            " FROM subsidy LEFT JOIN official_click ON official_click.subsidy_id = subsidy.id"
+            " GROUP BY subsidy.difficulty"
+        )
+    }
+    difficulty_stats = [
+        {"difficulty": key, "label": labels[key],
+         "clicks": counts[key]["clicks"] if key in counts else 0,
+         "users": counts[key]["users"] if key in counts else 0}
+        for key in ("easy", "normal", "hard")
+    ]
+    max_clicks = max((item["clicks"] for item in difficulty_stats), default=0)
+    for item in difficulty_stats:
+        item["bar_width"] = round(item["clicks"] * 100 / max_clicks) if max_clicks else 0
+    subsidy_usage = db.execute(
+        "SELECT subsidy.id, subsidy.name, subsidy.difficulty, COUNT(official_click.id) AS clicks,"
+        " COUNT(DISTINCT official_click.visit_id) AS users"
+        " FROM subsidy LEFT JOIN official_click ON official_click.subsidy_id = subsidy.id"
+        " GROUP BY subsidy.id ORDER BY clicks DESC, subsidy.name"
+    ).fetchall()
+    metrics = {
+        "registered_users": db.execute("SELECT COUNT(*) FROM member").fetchone()[0],
+        "diagnosis_users": db.execute("SELECT COUNT(DISTINCT visit_id) FROM diagnosis_log").fetchone()[0],
+        "official_clicks": db.execute("SELECT COUNT(*) FROM official_click").fetchone()[0],
+    }
     return render_template("data.html", tables=TABLES, table=table, rows=rows, columns=columns,
                            prefectures=PREF_NAME, categories=gemini.CATEGORIES,
-                           gemini_ready=bool(os.environ.get("GEMINI_API_KEY")))
+                           gemini_ready=bool(os.environ.get("GEMINI_API_KEY")),
+                           difficulty_stats=difficulty_stats, subsidy_usage=subsidy_usage, metrics=metrics)
 
 
 @app.route("/data/gemini", methods=["POST"])
@@ -267,9 +404,13 @@ def data_gemini():
     """Gemini に補助金を聞いて、確認画面に出す（まだ登録しない）"""
     if "admin_id" not in session:
         return redirect("/data/login")
-    area = request.form["area"]
+    area = request.form.get("area", "")
+    category = request.form.get("category", "")
+    if area not in PREF_NAME or (category and category not in gemini.CATEGORIES):
+        flash("地域またはカテゴリを選び直してください")
+        return redirect("/data")
     try:
-        items = gemini.fetch_subsidies(PREF_NAME[area], request.form["category"])
+        items = gemini.fetch_subsidies(PREF_NAME[area], category)
     except Exception as e:
         flash(f"Gemini から取得できませんでした：{e}")
         return redirect("/data")
@@ -281,20 +422,73 @@ def data_gemini_save():
     """確認画面でチェックした補助金を登録する"""
     if "admin_id" not in session:
         return redirect("/data/login")
+    area = request.form.get("area", "")
+    if area not in PREF_NAME:
+        flash("地域を選び直してください")
+        return redirect("/data")
+
+    selected = []
+    for n in request.form.getlist("checked"):
+        if not n.isdecimal():
+            flash("登録する制度を選び直してください")
+            return redirect("/data")
+        try:
+            name = request.form[f"name_{n}"].strip()
+            amount = request.form[f"amount_{n}"].strip()
+            difficulty = request.form[f"difficulty_{n}"]
+            deadline = request.form.get(f"deadline_{n}", "").strip() or None
+            official_url = request.form[f"official_url_{n}"].strip()
+            category = request.form[f"category_{n}"]
+            single_parent_only = request.form[f"single_parent_only_{n}"]
+            child_required = request.form[f"child_required_{n}"]
+            income_max = request.form.get(f"income_max_{n}", "").strip()
+        except KeyError:
+            flash("取得した制度情報が不足しています。もう一度取得してください")
+            return redirect("/data")
+
+        parsed_url = urlparse(official_url)
+        if (not name or len(name) > 100 or not amount or len(amount) > 100
+                or difficulty not in {"easy", "normal", "hard"}
+                or category not in gemini.CATEGORIES
+                or len(official_url) > 500 or parsed_url.scheme != "https" or not parsed_url.netloc
+                or single_parent_only not in {"0", "1"}
+                or child_required not in {"0", "1"}):
+            flash("登録できない形式の制度情報が含まれています。取得し直してください")
+            return redirect("/data")
+        if deadline:
+            try:
+                if date.fromisoformat(deadline).isoformat() != deadline:
+                    raise ValueError
+            except ValueError:
+                flash("申請期限の形式が正しくありません。取得し直してください")
+                return redirect("/data")
+        income_max_value = None
+        if income_max and income_max != "0":
+            if not income_max.isdecimal() or int(income_max) not in range(1, 5):
+                flash("年収上限の形式が正しくありません。取得し直してください")
+                return redirect("/data")
+            income_max_value = int(income_max)
+        selected.append((name, amount, difficulty, deadline, official_url, category,
+                         int(single_parent_only), int(child_required),
+                         income_max_value))
+
     db = get_db()
-    checked = request.form.getlist("checked")   # チェックした行の番号
     count = 0
-    for n in checked:
+    skipped = 0
+    for item in selected:
+        exists = db.execute(
+            "SELECT id FROM subsidy WHERE name = ? AND target_area = ?", (item[0], area)
+        ).fetchone()
+        if exists:
+            skipped += 1
+            continue
         db.execute(
             "INSERT INTO subsidy (name, amount, difficulty, deadline, official_url, category, target_area,"
             " single_parent_only, child_required, income_max, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (request.form[f"name_{n}"], request.form[f"amount_{n}"], request.form[f"difficulty_{n}"],
-             request.form[f"deadline_{n}"] or None, request.form[f"official_url_{n}"], request.form[f"category_{n}"],
-             request.form["area"], int(request.form[f"single_parent_only_{n}"]), int(request.form[f"child_required_{n}"]),
-             request.form[f"income_max_{n}"] or None, now()))
+            (*item[:6], area, *item[6:], now()))
         count += 1
     db.commit()
-    flash(f"{count} 件登録しました")
+    flash(f"{count} 件登録しました（重複 {skipped} 件は除外）")
     return redirect("/data?table=subsidy")
 
 

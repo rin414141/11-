@@ -1,38 +1,42 @@
 {% extends "base.html" %}
+{% block title %}かんたん診断｜ぽけっと手当{% endblock %}
 {% block content %}
 <h1>かんたん診断</h1>
-
+<p class="small">4つの質問にお答えください。</p>
 <form method="post">
-  <p>Q1 都道府県<br>
-    <select name="prefecture">
+  <div class="q">
+    <label for="prefecture">Q1 お住まいの都道府県</label>
+    <select name="prefecture" id="prefecture" required>
       <option value="">選択してください</option>
       {% for code, name in prefectures.items() if code != "00" %}
       <option value="{{ code }}">{{ name }}</option>
       {% endfor %}
     </select>
-  </p>
-
-  <p>Q2 子どもの人数<br>
-    <label><input type="radio" name="children_count" value="0">0人</label>
-    <label><input type="radio" name="children_count" value="1">1人</label>
-    <label><input type="radio" name="children_count" value="2">2人</label>
-    <label><input type="radio" name="children_count" value="3">3人</label>
-    <label><input type="radio" name="children_count" value="4">4人以上</label>
-  </p>
-
-  <p>Q3 世帯年収<br>
-    <label><input type="radio" name="income" value="1">300万円未満</label>
-    <label><input type="radio" name="income" value="2">300〜500万円</label>
-    <label><input type="radio" name="income" value="3">500〜800万円</label>
-    <label><input type="radio" name="income" value="4">800万円以上</label>
-    <label><input type="radio" name="income" value="5">わからない</label>
-  </p>
-
-  <p>Q4 ひとり親世帯ですか<br>
-    <label><input type="radio" name="is_single" value="1">はい</label>
-    <label><input type="radio" name="is_single" value="0">いいえ</label>
-  </p>
-
-  <button>この内容で診断する</button>
+  </div>
+  <fieldset class="q">
+    <legend>Q2 子どもの人数</legend>
+    <div class="choices">
+      {% for value, label in [(0, "0人"), (1, "1人"), (2, "2人"), (3, "3人"), (4, "4人以上")] %}
+      <label class="choice"><input type="radio" name="children_count" value="{{ value }}" required><span>{{ label }}</span></label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <fieldset class="q">
+    <legend>Q3 世帯年収</legend>
+    <div class="choices">
+      {% for value, label in [(1, "300万円未満"), (2, "300〜500万円"), (3, "500〜800万円"), (4, "800万円以上"), (5, "わからない")] %}
+      <label class="choice"><input type="radio" name="income" value="{{ value }}" required><span>{{ label }}</span></label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <fieldset class="q">
+    <legend>Q4 ひとり親世帯ですか？</legend>
+    <div class="choices">
+      <label class="choice"><input type="radio" name="is_single" value="1" required><span>はい</span></label>
+      <label class="choice"><input type="radio" name="is_single" value="0" required><span>いいえ</span></label>
+    </div>
+  </fieldset>
+  <button type="submit" class="btn block">この内容で診断する</button>
+  <p class="small">回答は診断結果の表示とサービス改善に利用します。</p>
 </form>
 {% endblock %}

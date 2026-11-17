@@ -1,51 +1,102 @@
 {% extends "base.html" %}
+{% block title %}データセンター｜ぽけっと手当{% endblock %}
+{% block page_width %}wide{% endblock %}
 {% block content %}
-<h1>データセンター</h1>
+<h1>データセンター <span class="small">（管理用）</span></h1>
 
-<h2>Geminiから補助金を取得</h2>
-{% if gemini_ready %}
-<form method="post" action="/data/gemini">
-  地域
-  <select name="area">
-    {% for code, name in prefectures.items() %}
-    <option value="{{ code }}">{{ name }}</option>
+<section class="page-card">
+  <h2>利用状況</h2>
+  <div class="tiles">
+    <div class="tile"><div class="small">登録利用者数</div><div class="num">{{ metrics.registered_users }}人</div></div>
+    <div class="tile"><div class="small">診断した利用者数</div><div class="num">{{ metrics.diagnosis_users }}人</div></div>
+    <div class="tile"><div class="small">公式サイトクリック数</div><div class="num">{{ metrics.official_clicks }}回</div></div>
+  </div>
+
+  <h3 class="analytics-heading">難易度別の利用状況</h3>
+  <p class="small">公式サイトへのクリック数と、クリックした訪問者数です。</p>
+  <div class="difficulty-chart">
+    {% for item in difficulty_stats %}
+    <div class="bar-row">
+      <div class="bar-label"><b>{{ item.label }}</b><span>{{ item.clicks }}回・{{ item.users }}人</span></div>
+      <div class="bar-track" role="img" aria-label="{{ item.label }}：{{ item.clicks }}クリック">
+        <div class="bar-fill {{ item.difficulty }}" style="width: {{ item.bar_width }}%"></div>
+      </div>
+    </div>
     {% endfor %}
-  </select>
-  カテゴリ
-  <select name="category">
-    <option value="">すべて</option>
-    {% for c in categories %}
-    <option>{{ c }}</option>
+  </div>
+
+  <h3 class="analytics-heading">制度ごとのクリック数</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>制度名</th><th>難易度</th><th>クリック数</th><th>訪問者数</th></tr></thead>
+      <tbody>
+      {% for item in subsidy_usage %}
+      <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ {"easy": "簡単", "normal": "ふつう", "hard": "難しい"}.get(item.difficulty, item.difficulty) }}</td>
+        <td class="num">{{ item.clicks }}</td><td class="num">{{ item.users }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">制度データがありません</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="page-card">
+  <h2>Gemini APIから制度情報を取得</h2>
+  <p class="small">取得内容を確認してからDBへ登録します。制度の対象や申請期限は、公式サイトでも確認してください。</p>
+  {% if gemini_ready %}
+  <form method="post" action="/data/gemini" class="toolbar">
+    <label>地域
+      <select name="area">
+        {% for code, name in prefectures.items() %}
+        <option value="{{ code }}">{{ name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>カテゴリ
+      <select name="category">
+        <option value="">すべて</option>
+        {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn">Geminiに聞く</button>
+  </form>
+  {% else %}
+  <p class="msg">GEMINI_API_KEYを設定するとGeminiから取得できます。</p>
+  {% endif %}
+</section>
+
+<section class="page-card">
+  <h2>テーブル：{{ table }}</h2>
+  <nav class="tabs" aria-label="テーブル">
+    {% for t in tables %}
+    <a class="{% if table == t %}on{% endif %}" href="/data?table={{ t }}">{{ t }}</a>
     {% endfor %}
-  </select>
-  <button>Geminiに聞く</button>
-</form>
-{% else %}
-<p>.env に GEMINI_API_KEY を書いて、起動し直してください。</p>
-{% endif %}
-
-<h2>テーブル：{{ table }}</h2>
-<p>
-  {% for t in tables %}
-  <a href="/data?table={{ t }}">{{ t }}</a>
-  {% endfor %}
-</p>
-
-<p>{{ rows|length }}件</p>
-<table border="1">
-  <tr>
-    {% for c in columns %}<th>{{ c }}</th>{% endfor %}
-    {% if table == "subsidy" %}<th>操作</th>{% endif %}
-  </tr>
-  {% for row in rows %}
-  <tr>
-    {% for c in columns %}<td>{{ row[c] }}</td>{% endfor %}
-    {% if table == "subsidy" %}
-    <td>
-      <form method="post" action="/data/delete/{{ row.id }}"><button>削除</button></form>
-    </td>
-    {% endif %}
-  </tr>
-  {% endfor %}
-</table>
+  </nav>
+  <p class="small">{{ rows|length }}件</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}{% if table == "subsidy" %}<th>操作</th>{% endif %}</tr></thead>
+      <tbody>
+      {% for row in rows %}
+      <tr>
+        {% for c in columns %}<td>{{ row[c] }}</td>{% endfor %}
+        {% if table == "subsidy" %}
+        <td>
+          <form method="post" action="/data/delete/{{ row.id }}" onsubmit="return confirm('この制度を削除しますか？')">
+            <button type="submit" class="btn-danger">削除</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ columns|length + (1 if table == 'subsidy' else 0) }}">データがありません</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

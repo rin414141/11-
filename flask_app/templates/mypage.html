@@ -1,29 +1,89 @@
 {% extends "base.html" %}
+{% block title %}マイページ｜ぽけっと手当{% endblock %}
 {% block content %}
 <h1>マイページ</h1>
-<p>{{ member.email }} でログイン中</p>
+<p class="small">{{ member.email }} でログイン中</p>
 
-<h2>保存した制度</h2>
-{% if not favorites %}
-<p>まだありません。診断結果の「☆保存」で保存できます。</p>
-{% endif %}
-<ul>
-  {% for s in favorites %}
-  <li>{{ s.name }}（申請期限：{{ s.deadline or "随時" }}） <a href="{{ s.official_url }}" target="_blank">公式サイト</a></li>
-  {% endfor %}
-</ul>
+<a class="notice" href="#favorite_list" {% if not soon_count %}hidden{% endif %}>
+  <span>{{ soon_count }}件の制度が7日以内に締切です</span><span aria-hidden="true">›</span>
+</a>
 
-<h2>前回の診断条件</h2>
-{% if last %}
-<p>{{ pref_name[last.prefecture] }} / 子ども{{ last.children_count }}人 / 年収区分{{ last.income }} / ひとり親：{{ "はい" if last.is_single else "いいえ" }}（{{ last.created_at }}）</p>
-{% else %}
-<p>まだ診断していません。</p>
-{% endif %}
-<p><a href="/diagnosis">もう一度診断する</a></p>
+<section class="page-card" id="favorite_list">
+  <div class="card-head"><h2>保存した制度</h2><span class="sub">{% if favorites %}{{ favorites|length }}件・締切が近い順{% endif %}</span></div>
+  {% if favorites %}
+    {% for s in favorites %}
+    <div class="fav">
+      <div>
+        <p class="fav-name">{{ s.name }}</p>
+        <p class="small">
+          {% if s.deadline %}
+            締切 {{ s.deadline[5:7] }}/{{ s.deadline[8:10] }}
+            {% if today <= s.deadline <= week_end %}<strong class="urgent">（7日以内）</strong>{% endif %}
+          {% else %}随時受付{% endif %}
+        </p>
+      </div>
+      <a class="btn-official" href="/out/{{ s.id }}" target="_blank" rel="noopener">公式サイト ↗</a>
+    </div>
+    {% endfor %}
+  {% else %}
+  <p class="small">☆を押すと制度を保存できます。</p>
+  {% endif %}
+</section>
 
-<h2>アカウント</h2>
-<p><a href="/logout">ログアウト</a></p>
-<form method="post" action="/withdraw">
-  <button>退会する</button>
-</form>
+<section class="page-card">
+  <h2>前回の診断条件</h2>
+  {% if last %}
+  <ul class="tags">
+    <li>{{ pref_name[last.prefecture] }}</li>
+    <li>子ども{{ child_labels[last.children_count] }}</li>
+    <li>年収：{{ income_labels[last.income] }}</li>
+    <li>ひとり親：{{ "はい" if last.is_single else "いいえ" }}</li>
+  </ul>
+  <p class="meta">{{ last.created_at[:10].replace("-", "/") }} 診断・{{ last.subsidy_ids.split(",")|length if last.subsidy_ids else 0 }}件該当</p>
+  {% else %}
+  <p class="small">まだ診断していません。</p>
+  {% endif %}
+  <a class="btn block" href="/diagnosis">条件を変えてもう一度診断</a>
+</section>
+
+<section class="page-card">
+  <h2>お知らせ設定</h2>
+  <form method="post" action="/mypage/settings">
+    <label class="switch-row">
+      <span>保存した制度の締切をメールで知らせる</span>
+      <span class="switch"><input type="checkbox" role="switch" name="notify_deadline" value="1" {% if member.notify_deadline %}checked{% endif %} onchange="this.form.submit()"><span class="track"></span></span>
+    </label>
+    <label class="switch-row">
+      <span>専門家・提携サービスからの案内を受け取る</span>
+      <span class="switch"><input type="checkbox" role="switch" name="agree_partner" value="1" {% if member.agree_partner %}checked{% endif %} onchange="this.form.submit()"><span class="track"></span></span>
+    </label>
+  </form>
+</section>
+
+<section class="page-card">
+  <a class="link-row" href="/account">メールアドレス・パスワードの変更 <span aria-hidden="true">›</span></a>
+  <a class="link-row" href="/logout">ログアウト <span aria-hidden="true">›</span></a>
+</section>
+
+<button type="button" class="withdraw" onclick="document.getElementById('withdraw_dialog').showModal()">退会する</button>
+<dialog id="withdraw_dialog">
+  <form method="post" action="/withdraw">
+    <h2>退会しますか？</h2>
+    <p>保存した制度と会員情報は削除され、元に戻せません。</p>
+    <div class="field">
+      <label for="reason">退会の理由（任意）</label>
+      <select name="reason" id="reason">
+        <option value="">選択しない</option>
+        <option>もう必要なくなった</option>
+        <option>欲しい制度が見つからなかった</option>
+        <option>使い方がわかりにくかった</option>
+        <option>その他</option>
+      </select>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn sub" onclick="this.closest('dialog').close()">やめる</button>
+      <button type="submit" class="btn-danger">退会する</button>
+    </div>
+  </form>
+</dialog>
 {% endblock %}

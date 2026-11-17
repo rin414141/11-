@@ -1,34 +1,37 @@
 {% extends "base.html" %}
+{% block title %}診断結果｜ぽけっと手当{% endblock %}
 {% block content %}
-<h1>診断結果（{{ subsidies|length }}件）</h1>
-<p>{{ pref_name[log.prefecture] }} / 子ども{{ log.children_count }}人 / 年収区分{{ log.income }} / ひとり親：{{ "はい" if log.is_single else "いいえ" }}</p>
-<p><a href="/diagnosis">条件を変えて診断し直す</a></p>
+<h1>診断結果 <span class="small">{{ subsidies|length }}件</span></h1>
+<p class="cond">{{ pref_name[log.prefecture] }}／子ども{{ log.children_count }}人／年収区分{{ log.income }}／ひとり親：{{ "はい" if log.is_single else "いいえ" }}</p>
+<p><a href="/diagnosis">条件を変えて診断し直す ›</a></p>
+<p class="small">申請期限が近い順</p>
 
-{% if not subsidies %}
-<p>条件に合う制度が見つかりませんでした。</p>
-{% endif %}
-
-<table border="1">
-  <tr><th>補助金名</th><th>カテゴリ</th><th>難易度</th><th>もらえる目安</th><th>申請期限</th><th>公式サイト</th><th>保存</th></tr>
+{% if subsidies %}
   {% for s in subsidies %}
-  <tr>
-    <td>{{ s.name }}</td>
-    <td>{{ s.category }}</td>
-    <td>{{ s.difficulty }}</td>
-    <td>{{ s.amount }}</td>
-    <td>{{ s.deadline or "随時" }}</td>
-    <td><a href="{{ s.official_url }}" target="_blank">開く</a></td>
-    <td>
+  <article class="card">
+    <div class="top">
+      <div>
+        <span class="label">{{ s.category }}</span><span class="label">申請 {{ {"easy": "簡単", "normal": "普通", "hard": "難しい"}.get(s.difficulty, s.difficulty) }}</span>
+        <p class="name">{{ s.name }}</p>
+      </div>
       {% if member %}
-      <form method="post" action="/favorite/{{ s.id }}">
+      <form class="inline-form" method="post" action="/favorite/{{ s.id }}">
         <input type="hidden" name="log_id" value="{{ log.id }}">
-        <button>{{ "★保存済み" if s.id in favorite_ids else "☆保存" }}</button>
+        <button class="star" type="submit" aria-label="お気に入り">{{ "★" if s.id in favorite_ids else "☆" }}</button>
       </form>
       {% else %}
-      <a href="/login">ログインして保存</a>
+      <a class="star" href="/login" aria-label="ログインして保存">☆</a>
       {% endif %}
-    </td>
-  </tr>
+    </div>
+    <dl><dt>もらえる目安</dt><dd>{{ s.amount }}</dd><dt>申請期限</dt><dd>{{ s.deadline or "随時" }}</dd></dl>
+    <a class="official" href="/out/{{ s.id }}" target="_blank" rel="noopener">公式サイトで申請方法を見る ↗</a>
+  </article>
   {% endfor %}
-</table>
+{% else %}
+<p class="msg">条件に合う制度が見つかりませんでした。</p>
+{% endif %}
+
+{% if not member %}
+<a class="notice" href="/register">保存した制度を登録して、あとから確認する ›</a>
+{% endif %}
 {% endblock %}

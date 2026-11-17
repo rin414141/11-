@@ -1,18 +1,29 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>ぽけっと手当</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ぽけっと手当{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<p><a href="/">ぽけっと手当</a> | <a href="/mypage">マイページ</a> | <a href="/login">ログイン</a> | <a href="/register">新規登録</a></p>
-<hr>
-
-{# flash() で出したメッセージ #}
-{% for message in get_flashed_messages() %}
-<p><b>{{ message }}</b></p>
-{% endfor %}
-
-{% block content %}{% endblock %}
+<div class="wrap {% block page_width %}{% endblock %}">
+  <header id="header">
+    <a class="logo" href="/">ぽけっと手当</a>
+    <nav aria-label="メインナビゲーション">
+      <a href="/diagnosis">診断</a>
+      <a href="/mypage">マイページ</a>
+      <a href="/login">ログイン</a>
+      <a href="/register">新規登録</a>
+    </nav>
+  </header>
+  <main>
+    {% for message in get_flashed_messages() %}
+    <p class="msg" role="status">{{ message }}</p>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer>© ぽけっと手当</footer>
+</div>
 </body>
 </html>

@@ -60,3 +60,19 @@ CREATE TABLE IF NOT EXISTS admin_user (
     password_hash VARCHAR(256) NOT NULL,
     created_at    DATETIME     NOT NULL
 );
+
+-- 10 退会理由（任意・個人を特定する情報は保存しない）
+CREATE TABLE IF NOT EXISTS withdrawal_feedback (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    reason     VARCHAR(100) NOT NULL,
+    created_at DATETIME     NOT NULL
+);
+
+-- 11 公式サイトへのクリック
+CREATE TABLE IF NOT EXISTS official_click (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    visit_id   VARCHAR(36) NOT NULL,
+    member_id  INTEGER REFERENCES member(id) ON DELETE SET NULL,
+    subsidy_id INTEGER NOT NULL REFERENCES subsidy(id) ON DELETE CASCADE,
+    created_at DATETIME    NOT NULL
+);

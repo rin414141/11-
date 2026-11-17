@@ -1,20 +1,24 @@
 /* ぽけっと手当 共通スクリプト
-   テーブル設計書（26_テーブル設計書_ぽけっと手当.xlsx）の4テーブルを localStorage で再現する
-   subsidy（補助金マスタ）／member（会員）／favorite（お気に入り）／diagnosis_log（診断ログ） */
+   画面共通のコード値・サンプルデータ・保存処理・表示用処理をまとめる。
+   データはサーバーではなくブラウザーの localStorage に保存する。 */
 
-// ---------------- コード値（画面設計書の Value属性）
+// ---------------- 選択肢・コード値
+// 画面で選んだ値を、保存や診断に使うコードへ対応付ける。
 const PREFS = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県",
   "埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県",
   "静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県",
   "岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県",
   "大分県","宮崎県","鹿児島県","沖縄県"].map((n, i) => [String(i + 1).padStart(2, "0"), n]);
+// 都道府県コードから画面表示名を引けるようにする。「00」は全国共通。
 const PREF_NAME = Object.fromEntries([["00", "全国"], ...PREFS]);
 const CHILDREN = [[0, "0人"], [1, "1人"], [2, "2人"], [3, "3人"], [4, "4人以上"]];
 const INCOMES = [[1, "300万円未満"], [2, "300〜500万円"], [3, "500〜800万円"], [4, "800万円以上"], [5, "わからない"]];
 const SINGLE = [[1, "はい"], [0, "いいえ"]];
 const DIFF_LABEL = { easy: "簡単", normal: "普通", hard: "難しい" };
 
-// ---------------- 補助金マスタのサンプル（seed.py と同じ内容。deadline は今日からの日数）
+// ---------------- 初回表示用の補助金サンプル
+// 各行は [名称, 分類, 申請難易度, 金額の目安, 公式URL, 任意の条件] の順。
+// deadline は今日からの日数。条件を省略した場合は初期値が使われる。
 const CFA = "https://www.cfa.go.jp/policies/hitori-oya/";
 const SUBSIDY_SEED = [
   ["児童手当", "子育て", "easy", "月1万円〜／1人", "https://www.cfa.go.jp/policies/kokoseido/jidouteate/"],
@@ -36,6 +40,7 @@ const SUBSIDY_SEED = [
 ];
 
 // ---------------- 日付
+// 画面・保存データで使う日付を YYYY-MM-DD 形式にそろえる。
 const pad = n => String(n).padStart(2, "0");
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
@@ -43,8 +48,11 @@ const addDays = n => { const d = today(); d.setDate(d.getDate() + n); return ymd
 const daysLeft = s => Math.round((new Date(s + "T00:00:00") - today()) / 86400000);
 const now = () => new Date().toISOString();
 
-// ---------------- DB（localStorage）
+// ---------------- データ保存（localStorage）
+// ブラウザー内で使うデータベース全体を1つのキーに保存する。
 const DB_KEY = "pokette_db";
+
+// 保存データを読み込む。初回だけ空のテーブルを作り、サンプル制度を登録する。
 function loadDB() {
   let db = JSON.parse(localStorage.getItem(DB_KEY) || "null");
   if (!db) {
@@ -64,19 +72,26 @@ function loadDB() {
   }
   return db;
 }
+
+// 更新したデータベースをブラウザーへ保存する。
 function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+// 指定テーブルへ新しい行を追加し、テーブルごとの連番IDを付けて返す。
 function insert(db, table, row) {
   db.seq[table] = (db.seq[table] || 0) + 1;
   row = { id: db.seq[table], ...row };
   db[table].push(row);
   return row;
 }
+
+// デモデータとログイン状態を消し、トップ画面へ戻る。
 function resetDB() {
   [DB_KEY, "pokette_login", "pokette_tmp_fav", "pokette_last_diag"].forEach(k => localStorage.removeItem(k));
   location.href = "index.html";
 }
 
-// ---------------- 訪問ID・ログイン状態
+// ---------------- 訪問者・ログイン状態
+// ブラウザーごとの訪問IDを作成する。次回以降は保存済みのIDを使う。
 function visitId() {
   let v = localStorage.getItem("pokette_visit");
   if (!v) {
@@ -85,22 +100,32 @@ function visitId() {
   }
   return v;
 }
+
+// ログイン中の会員を返す。ログインしていない場合や会員が見つからない場合は null。
 function currentMember(db = loadDB()) {
   const id = Number(localStorage.getItem("pokette_login"));
   return db.member.find(m => m.id === id) || null;
 }
-async function hashPassword(pw) {  // 本番は werkzeug。ここでは SHA-256 で代用
-  if (!crypto.subtle) return "plain:" + btoa(unescape(encodeURIComponent(pw))); // 非対応環境用（デモのみ）
+
+// デモ用のパスワード変換。本番システムの安全なパスワード保存には使わない。
+async function hashPassword(pw) {
+  // Web Crypto が使えない環境向けの代替処理（デモ専用）。
+  if (!crypto.subtle) return "plain:" + btoa(unescape(encodeURIComponent(pw)));
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pw));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// ---------------- お気に入り（未ログインはブラウザに一時保存）
+// ---------------- お気に入り
+// ログイン前のお気に入りは、会員データと分けて一時保存する。
 const tmpFav = () => JSON.parse(localStorage.getItem("pokette_tmp_fav") || "[]");
+
+// 会員なら会員用データ、未ログインなら一時保存データから登録状態を調べる。
 function isFavorite(db, subsidyId) {
   const m = currentMember(db);
   return m ? db.favorite.some(f => f.member_id === m.id && f.subsidy_id === subsidyId) : tmpFav().includes(subsidyId);
 }
+
+// お気に入りの登録状態を切り替えて、該当する保存先へ反映する。
 function toggleFavorite(subsidyId) {
   const db = loadDB(), m = currentMember(db);
   if (m) {
@@ -114,7 +139,8 @@ function toggleFavorite(subsidyId) {
     localStorage.setItem("pokette_tmp_fav", JSON.stringify(t));
   }
 }
-// 登録・ログイン時に一時保存の☆と診断条件を会員へ引き継ぐ
+
+// 登録・ログイン時に、未ログイン中のお気に入りと直近の診断条件を会員へ引き継ぐ。
 function carryOver(db, member) {
   tmpFav().forEach(sid => {
     if (!db.favorite.some(f => f.member_id === member.id && f.subsidy_id === sid))
@@ -127,36 +153,48 @@ function carryOver(db, member) {
     Object.assign(member, pickCond(log));
   }
 }
+
+// 診断ログから、会員プロフィールへ保存する条件だけを取り出す。
 const pickCond = l => ({ prefecture: l.prefecture, children_count: l.children_count, income: l.income, is_single: l.is_single });
 
-// ---------------- 診断（共通仕様「判定ルール（簡易）」）
+// ---------------- 制度診断
+// 利用者の条件に合わない制度が1つでもあれば false を返す。
 function match(s, c) {
-  if (s.deadline && daysLeft(s.deadline) < 0) return false;                  // 期限切れは出さない
-  if (s.target_area !== "00" && s.target_area !== c.prefecture) return false; // ①地域
-  if (s.single_parent_only && !c.is_single) return false;                    // ②ひとり親限定
-  if (s.child_required && c.children_count < 1) return false;                // ③子ども必須
-  if (s.income_max && c.income !== 5 && c.income > s.income_max) return false; // ④年収（わからないは除外しない）
+  if (s.deadline && daysLeft(s.deadline) < 0) return false; // 期限切れ
+  if (s.target_area !== "00" && s.target_area !== c.prefecture) return false; // 対象地域外
+  if (s.single_parent_only && !c.is_single) return false; // ひとり親限定
+  if (s.child_required && c.children_count < 1) return false; // 子どもが必要
+  if (s.income_max && c.income !== 5 && c.income > s.income_max) return false; // 年収上限超過。「わからない」は除外しない
   return true;
 }
-// 申請期限が近い順。随時（NULL）は最後
+
+// 申請期限が近い順に並べる。期限なし（null）の制度は最後にする。
 const byDeadline = (a, b) => (a.deadline || "9999") < (b.deadline || "9999") ? -1 : 1;
 
+// ログイン中なら会員の最新ログ、未ログインなら直近の診断ログを返す。
 function lastDiagnosis(db) {
   const m = currentMember(db);
   const logs = m ? db.diagnosis_log.filter(l => l.member_id === m.id)
                  : db.diagnosis_log.filter(l => l.id === Number(localStorage.getItem("pokette_last_diag")));
   return logs.sort((a, b) => b.id - a.id)[0] || null;
 }
+
+// 診断条件のコード値を、画面に表示する日本語の文章へ変換する。
 const condText = c => `${PREF_NAME[c.prefecture]}／子ども${CHILDREN.find(x => x[0] === c.children_count)[1]}／` +
   `${INCOMES.find(x => x[0] === c.income)[1]}／ひとり親：${c.is_single ? "はい" : "いいえ"}`;
 
-// ---------------- 表示の部品
+// ---------------- 画面表示用の共通処理
+// HTMLに埋め込む文字列をエスケープし、入力値がHTMLとして解釈されないようにする。
 const esc = s => String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+
+// 申請期限を表示する。残り7日以内は、注意を促す表示にする。
 function deadlineHtml(d) {
   if (!d) return "随時";
   const n = daysLeft(d), md = `${d.slice(5, 7)}/${d.slice(8, 10)}`;
   return n <= 7 ? `<span class="urgent">${md}（あと${n}日）</span>` : md;
 }
+
+// ログイン状態に応じた共通ヘッダーを描画する。
 function header({ back } = {}) {
   const m = currentMember();
   document.getElementById("header").innerHTML = `
@@ -164,11 +202,15 @@ function header({ back } = {}) {
     <a class="logo" href="index.html">ぽけっと手当</a>
     <a class="head-link" href="${m ? "mypage.html" : "auth.html?mode=login"}">${m ? "マイページ" : "ログイン"}</a>`;
 }
-function flash() {  // 前の画面からのメッセージ
+
+// 前の画面が保存した一時メッセージを表示し、表示後に消す。
+function flash() {
   const msg = sessionStorage.getItem("pokette_flash");
   if (msg) {
     sessionStorage.removeItem("pokette_flash");
     document.querySelector("main").insertAdjacentHTML("afterbegin", `<p class="msg ok">${esc(msg)}</p>`);
   }
 }
+
+// 次の画面で表示する一時メッセージを保存する。
 const setFlash = msg => sessionStorage.setItem("pokette_flash", msg);

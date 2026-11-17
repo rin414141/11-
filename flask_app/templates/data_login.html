@@ -1,11 +1,16 @@
 {% extends "base.html" %}
+{% block title %}データセンター ログイン｜ぽけっと手当{% endblock %}
 {% block content %}
 <h1>データセンター ログイン</h1>
-
-<form method="post">
-  <p>ユーザー名<br><input type="text" name="username"></p>
-  <p>パスワード<br><input type="password" name="password"></p>
-  <button>ログイン</button>
+<form class="page-card" method="post">
+  <div class="field">
+    <label for="username">ユーザー名</label>
+    <input type="text" name="username" id="username" autocomplete="username" required>
+  </div>
+  <div class="field">
+    <label for="password">パスワード</label>
+    <input type="password" name="password" id="password" autocomplete="current-password" required>
+  </div>
+  <button type="submit" class="btn block">ログイン</button>
 </form>
-<p>初期値は admin / admin</p>
 {% endblock %}
